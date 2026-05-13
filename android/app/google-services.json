@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "100913023077",
+    "project_id": "fiuuassistant",
+    "storage_bucket": "fiuuassistant.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:100913023077:android:7fd9effbf900170d4d9e8c",
+        "android_client_info": {
+          "package_name": "com.example.fiuuassistant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAf2FbQOtgierTRKV8mpSU4XEMzve-ZcMg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
