@@ -1,4 +1,5 @@
 import 'package:fiuuassistant/features/courses_screen/data/models/module_model.dart';
+import 'package:fiuuassistant/features/courses_screen/data/models/question_model.dart';
 import 'package:fiuuassistant/features/courses_screen/data/models/topic_model.dart';
 
 class Course {
@@ -11,6 +12,7 @@ class Course {
   final String duration;
   final bool isNew;
   final List<ModuleModel> module;
+
   Course({
     required this.id,
     required this.title,
@@ -29,12 +31,14 @@ class Module {
   final String description;
   final String title;
   final List<TopicModel> topics;
+  final List<QuestionModel> questions;
 
   Module({
     required this.order,
     required this.description,
     required this.title,
     required this.topics,
+    required this.questions,
   });
 }
 

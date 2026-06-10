@@ -9,18 +9,32 @@ class WebLoginScreen extends StatefulWidget {
 }
 
 class _WebLoginScreenState extends State<WebLoginScreen> {
+  bool _isLoading = false;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   Future<void> _login() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showError('Por favor, ingrese correo y contraseña');
+      return;
+    }
+    setState(() => _isLoading = true);
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Login failed: ${e.toString()}')));
+    } on FirebaseAuthException catch (e) {
+      String message = "Ocurrió un error inesperado";
+      if (e.code == 'user-not-found') {
+        message = "No existe un usuario con este correo.";
+      } else if (e.code == 'wrong-password') {
+        message = "Contraseña incorrecta.";
+      } else if (e.code == 'invalid-email') {
+        message = "El formato del correo es inválido.";
+      }
+      _showError(message);
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -72,7 +86,7 @@ class _WebLoginScreenState extends State<WebLoginScreen> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: _login,
+                  onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A237E),
                     foregroundColor: Colors.white,
@@ -81,7 +95,22 @@ class _WebLoginScreenState extends State<WebLoginScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text("INGRESAR"),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Iniciar Sesión",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -89,5 +118,11 @@ class _WebLoginScreenState extends State<WebLoginScreen> {
         ),
       ),
     );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

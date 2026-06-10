@@ -1,4 +1,4 @@
-import 'package:fiuuassistant/features/courses_screen/data/models/Topic_model.dart';
+import 'package:fiuuassistant/features/courses_screen/data/models/topic_model.dart';
 import 'package:flutter/material.dart';
 import 'package:fiuuassistant/features/courses_screen/data/models/course_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

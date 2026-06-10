@@ -1,4 +1,4 @@
-import './Topic_model.dart';
+import './topic_model.dart';
 import './question_model.dart';
 
 class ModuleModel {
@@ -41,9 +41,61 @@ class ModuleModel {
               )
               .toList() ??
           [],
-      questions: (map['questions'] as List<dynamic>?)
-          ?.map((question) => QuestionModel.fromJson(question))
-          .toList(),
+      questions: map['questions'] != null
+          ? (map['questions'] as List)
+                .map((q) => QuestionModel.fromJson(q as Map<String, dynamic>))
+                .toList()
+          : <QuestionModel>[],
     );
   }
+  ModuleModel copyWith({
+    String? title,
+    int? order,
+    String? description,
+    List<TopicModel>? topics,
+    List<QuestionModel>? questions,
+  }) {
+    return ModuleModel(
+      title: title ?? this.title,
+      order: order ?? this.order,
+      description: description ?? this.description,
+      topics: topics ?? this.topics,
+      questions: questions ?? this.questions,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'order': order,
+    'description': description,
+    'topics': topics
+        .map(
+          (topic) => {
+            'title': topic.title,
+            'order': topic.order,
+            'hasTopics': topic.hasTopics,
+            'content': topic.content,
+            'subtopics': topic.topics
+                .map(
+                  (subtopic) => {
+                    'title': subtopic.title,
+                    'order': subtopic.order,
+                    'hasTopics': subtopic.hasTopics,
+                    'content': subtopic.content,
+                  },
+                )
+                .toList(),
+          },
+        )
+        .toList(),
+    'questions': questions
+        ?.map(
+          (q) => {
+            'questionText': q.questionText,
+            'options': q.options,
+            'correctIndex': q.correctIndex,
+          },
+        )
+        .toList(),
+  };
 }

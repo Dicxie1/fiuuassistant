@@ -1,4 +1,4 @@
-import 'package:fiuuassistant/features/courses_screen/data/models/Topic_model.dart';
+import 'package:fiuuassistant/features/courses_screen/data/models/topic_model.dart';
 import 'package:flutter/material.dart';
 import 'package:fiuuassistant/features/courses_screen/data/models/question_model.dart';
 
@@ -260,7 +260,7 @@ class _CourseReaderScreenState extends State<CourseReaderScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Pregunta ${index + 1}. ${question.question}",
+                                "Pregunta ${index + 1}. ${question.questionText}",
                                 style: const TextStyle(
                                   color: Color.fromRGBO(0, 121, 107, 1),
                                   fontSize: 16,
@@ -269,7 +269,7 @@ class _CourseReaderScreenState extends State<CourseReaderScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                question.question,
+                                question.questionText,
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
