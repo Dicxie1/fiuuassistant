@@ -32,17 +32,40 @@ class TopicModel {
     );
   }
   TopicModel copyWith({
+    String? title,
+    String? content,
+    int? order,
+    bool? hasTopics,
+    List<TopicModel>? topics,
     String? parentModuleName,
     List<QuestionModel>? checkpointQuestions,
   }) {
     return TopicModel(
-      title: title,
-      order: order,
-      hasTopics: hasTopics,
-      topics: topics,
-      content: content,
+      title: title ?? this.title,
+      order: order ?? this.order,
+      hasTopics: hasTopics ?? this.hasTopics,
+      topics: topics ?? this.topics,
+      content: content ?? this.content,
       parentModuleName: parentModuleName ?? this.parentModuleName,
       checkpointQuestions: checkpointQuestions ?? this.checkpointQuestions,
     );
+  }
+  Map<String, dynamic> toMap() {
+    return {
+      'title': title,
+      'order': order,
+      'hasTopics': hasTopics,
+      'content': content,
+      'subtopics': topics
+          .map(
+            (topic) => {
+              'title': topic.title,
+              'order': topic.order,
+              'hasTopics': topic.hasTopics,
+              'content': topic.content,
+            },
+          )
+          .toList(),
+    };
   }
 }

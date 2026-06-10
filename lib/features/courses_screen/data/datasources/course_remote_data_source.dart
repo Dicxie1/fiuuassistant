@@ -3,6 +3,7 @@ import '../models/course_model.dart';
 
 abstract class CourseRemoteDataSource {
   Stream<List<CourseModel>> getCourses();
+  Future<void> updateCourse(CourseModel course);
 }
 
 class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
@@ -18,6 +19,13 @@ class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
         return CourseModel.fromFirestore(doc.data(), doc.id);
       }).toList();
     });
+  }
+  @override
+  Future<void> updateCourse(CourseModel course) async{
+    await firestore
+        .collection('courses')
+        .doc(course.id)
+        .update(course.toFirebastore());
   }
   Future<CourseModel> getCourseDetails(String courseId) async {
     final doc = await firestore.collection('courses').doc(courseId).get();

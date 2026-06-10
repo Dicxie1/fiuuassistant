@@ -40,6 +40,7 @@ class _NavigationShellScreenState extends State<NavigationShellScreen> {
       height: 70,
       notchMargin: 10,
       shape: const CircularNotchedRectangle(),
+      elevation: 5.0,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [

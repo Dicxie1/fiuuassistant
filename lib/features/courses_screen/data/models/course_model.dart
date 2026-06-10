@@ -13,9 +13,12 @@ class CourseModel extends Course {
     required super.isNew,
     required super.module,
   });
-  factory CourseModel.fromFirestore(Map<String, dynamic> json, String id) {
+  factory CourseModel.fromFirestore(
+    Map<String, dynamic> json,
+    String documentId,
+  ) {
     return CourseModel(
-      id: id,
+      id: documentId,
       title: json['title'] as String? ?? 'Sin título',
       description: json['description'] as String? ?? '',
       imgUrl: json['imgUrl'] as String? ?? '',

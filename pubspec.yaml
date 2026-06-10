@@ -10,8 +10,10 @@ dependencies:
   cloud_firestore: ^6.3.0
   firebase_auth: ^6.5.1
   firebase_core: ^4.7.0
+  firebase_storage: ^13.4.1
   flutter:
     sdk: flutter
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -20,3 +22,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env
+    - assets/img/URACCAN_Logo.png
