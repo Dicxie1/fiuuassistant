@@ -36,7 +36,7 @@ class _MoodAuthGuardScreen extends State<MoodAuthGuardScreen> {
         serverClientId:
             "100913023077-mkib000k17f6s0h543r90gvh8ff53uap.apps.googleusercontent.com",
       );
-      final GoogleSignInAccount? googleUser = await googleSignIn.authenticate();
+      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
       if (googleUser == null) {
         debugPrint("User cancelled the Google sign-in flow");
         return;
