@@ -12,7 +12,20 @@
           "package_name": "com.example.fiuuassistant"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "100913023077-ccrt2hjafo3qmroptg8o7s07g80r3oa0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fiuuassistant",
+            "certificate_hash": "7d39b0076b0b1f5ddffac15bf263d81936df4a68"
+          }
+        },
+        {
+          "client_id": "100913023077-mkib000k17f6s0h543r90gvh8ff53uap.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAf2FbQOtgierTRKV8mpSU4XEMzve-ZcMg"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "100913023077-mkib000k17f6s0h543r90gvh8ff53uap.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "100913023077-mnsmiueeq9v56kfk3ph1vjfmo5k8uuh3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fiuuassistant"
+              }
+            }
+          ]
         }
       }
     }

@@ -5,12 +5,14 @@ class TopicEditWidget extends StatefulWidget {
   final String content;
   final int order;
   final void Function(String, String) onSave;
+  final VoidCallback? onDelete;
   const TopicEditWidget({
     super.key,
     required this.title,
     required this.content,
     required this.order,
     required this.onSave,
+    this.onDelete,
   });
 
   @override
@@ -96,17 +98,47 @@ class _TopicEditWidgetState extends State<TopicEditWidget> {
 
         // Botón de Guardado
         Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            ElevatedButton.icon(
-              onPressed: () {},
-              icon: Icon(Icons.cancel),
+            if (widget.onDelete != null)
+              OutlinedButton.icon(
+                onPressed: widget.onDelete,
+                icon: const Icon(Icons.delete_forever, color: Colors.red),
+                label: const Text(
+                  "Eliminar",
+                  style: TextStyle(fontSize: 16, color: Colors.red),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red, width: 1.5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadiusGeometry.circular(10),
+                  ),
+                ),
+              ),
+            const Spacer(),
+            OutlinedButton.icon(
+              onPressed: () {
+                _titleController.text = widget.title;
+                _contentController.text = widget.content;
+              },
+              icon: Icon(Icons.cancel, color: Colors.red),
               label: const Text("Cancelar", style: TextStyle(fontSize: 16)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 255, 0, 0),
-                foregroundColor: Colors.white,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.red, width: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 16),
             ElevatedButton.icon(
               onPressed: () {
                 // Aquí puedes capturar el texto modificado usando:
@@ -117,7 +149,14 @@ class _TopicEditWidgetState extends State<TopicEditWidget> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A237E),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 14,
+                ),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               icon: const Icon(Icons.save),
               label: const Text("Guardar", style: TextStyle(fontSize: 16)),
