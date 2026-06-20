@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fiuuassistant/features/courses_screen/data/models/course_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fiuuassistant/features/courses_screen/data/datasources/course_remote_data_source.dart';
 import 'package:fiuuassistant/features/courses_screen/data/models/question_model.dart';
 import '../widgets/topic_edit_widget.dart';
 import 'package:fiuuassistant/features/courses_screen/data/models/module_model.dart';
@@ -81,7 +80,8 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
               color: Colors.grey.shade200,
               child: modulesList.isEmpty
                   ? _buildEmptyState(context)
-                  : ListView(
+                  : ReorderableListView(
+                      onReorder: _reordeModules,
                       children: modulesList.map((module) {
                         // Extraemos temas y preguntas de este módulo específico
                         final List<TopicModel> topicsList = module.topics ?? [];
@@ -90,20 +90,23 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
 
                         // Filtramos por si vienen temas vacíos en la base de datos como en el ejemplo
                         final List<TopicModel> validTopics = topicsList
-                            .where(
-                              (t) =>
-                                  t.title.toString().isNotEmpty,
-                            )
+                            .where((t) => t.title.toString().isNotEmpty)
                             .toList();
 
                         return ExpansionTile(
+                          key: ValueKey(
+                            "module_${module.title}_${module.order}",
+                          ),
+                          onExpansionChanged: (isExpanded) {
+                            setState(() {});
+                          },
                           leading: const Icon(
                             Icons.folder,
                             color: Colors.indigo,
                           ),
                           // Muestra: "Módulo Historia de la psicología", "Módulo Emociones y Sentimientos", etc.
                           title: Text(
-                            "Módulo  ${module.title}",
+                            "Módulo ${module.order}  ${module.title}",
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
@@ -117,10 +120,7 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
                               var topic = entry.value;
 
                               // Si el topic ya trae un sub-orden (ej: "1") lo usamos, si no, usamos el índice correlativo
-                              String subOrder =
-                                  (topic.order.toString().isNotEmpty)
-                                  ? topic.order.toString()
-                                  : "${tIndex + 1}";
+                              String subOrder = "${tIndex + 1}";
 
                               return _buildSubItem(
                                 "${module.order}.$subOrder", // Genera "1.1", "1.2", etc.
@@ -131,6 +131,7 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
                                 isQuiz: false,
                                 onTap: () {
                                   setState(() {
+                                    _isCreatingNewTopic = false;
                                     selectedItemId =
                                         "${module.order}.$subOrder";
                                     selectedItemType = "topic";
@@ -182,12 +183,22 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
                                 });
                               },
                             ),
-                            if (moduleQuestions.isEmpty)
+                            if (moduleQuestions.isEmpty &&
+                                selectedItemId != "${module.order}.quiz")
                               _buildSubItem(
                                 "",
                                 "Agregar Evaluación",
                                 Icons.add,
-                                onTap: () {},
+                                onTap: () {
+                                  setState(() {
+                                    _isCreatingNewTopic = false;
+                                    selectedItemId = "${module.order}.quiz";
+                                    selectedItemType = "quiz";
+                                    selectedItemTitle =
+                                        "Evaluacion del Modulo : ${module.title}";
+                                    activeQuizQuestions = [];
+                                  });
+                                },
                               ),
                           ],
                         );
@@ -243,8 +254,190 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
   }
 
   void _addNewModule(BuildContext context) {
-    // Lógica para disparar un diálogo de creación de módulo
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController descriptionController = TextEditingController();
+    final GlobalKey<FormState> fromKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.folder_open, color: Color(0xFF1A237E)),
+              SizedBox(width: 10),
+              Text(
+                "Crear Nuevo Módulo",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A237E),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 700,
+            child: Form(
+              key: fromKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: "Titulo de Modulo",
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.title),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return "El titulo es Obligatorio";
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: descriptionController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: "Descripción de Modulo",
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text("Cancelar"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (fromKey.currentState?.validate() ?? false) {
+                  final String title = titleController.text.trim();
+                  final String description = descriptionController.text.trim();
+
+                  Navigator.of(dialogContext).pop();
+                  setState(() {
+                    _isSaving = true;
+                  });
+                  try {
+                    final List<ModuleModel> currentModules =
+                        List<ModuleModel>.from(_localCourse.module);
+                    final ModuleModel newModule = ModuleModel(
+                      title: title,
+                      order: currentModules.length + 1,
+                      description: description,
+                      topics: [],
+                      questions: [],
+                    );
+                    currentModules.add(newModule);
+                    final List<Map<String, dynamic>> modulesJson =
+                        currentModules.map((m) => m.toJson()).toList();
+                    await FirebaseFirestore.instance
+                        .collection("courses")
+                        .doc(_localCourse.id.toString())
+                        .update({"module": modulesJson});
+                    await _reloadCourseFromFirestore();
+                    if (mounted) {
+                      setState(() {
+                        _isSaving = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Nuevo Módulo creado con exito!"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    setState(() {
+                      _isSaving = false;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Error al crear el modulo"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A237E),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text("Crear"),
+            ),
+          ],
+        );
+      },
+    );
   }
+
+  Future<void> _reordeModules(int oldIndex, int newIndex) async {
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      _isSaving = true;
+    });
+    try {
+      final List<ModuleModel> modules = List<ModuleModel>.from(
+        _localCourse.module,
+      );
+      final ModuleModel moveModule = modules.removeAt(oldIndex);
+      modules.insert(newIndex, moveModule);
+      for (int i = 0; i < modules.length; i++) {
+        modules[i] = modules[i].copyWith(order: i + 1);
+      }
+      final List<Map<String, dynamic>> modulesJson = modules
+          .map((m) => m.toJson())
+          .toList();
+
+      await FirebaseFirestore.instance
+          .collection("courses")
+          .doc(_localCourse.id.toString())
+          .update({"module": modulesJson});
+
+      await _reloadCourseFromFirestore();
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Orden del modulo actualizado correctamente"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Error al cambiar el orde del modulo"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showAddContentOptions(String moduleId) {
     showModalBottomSheet(
       context: context,
@@ -325,9 +518,10 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
     final String contentValue = _isCreatingNewTopic
         ? ""
         : (currentSelectedTopic?.content ?? "");
+    final List<String> parts = (selectedItemId ?? "").split(".");
     final int orderValue = _isCreatingNewTopic
         ? 0
-        : (int.tryParse(currentSelectedTopic?.order.toString() ?? '0') ?? 0);
+        : (parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0);
     return TopicEditWidget(
       title: titleValue,
       content: contentValue,
@@ -338,6 +532,7 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
         else
           _updateTopic(title, content),
       },
+      onDelete: _isCreatingNewTopic ? null : _deleteTopic,
     );
   }
 
@@ -348,28 +543,32 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
     });
     try {
       final List<ModuleModel> modules = List<ModuleModel>.from(
-        widget.course.module,
+        _localCourse.module,
       );
-      for (var moduleMap in modules) {
-        if (moduleMap.order.toString() == _activeModuleIdForceCreation) {
-          final List<TopicModel> topicList = List.from(moduleMap.topics);
-          int nextOrder = topicList.length + 1;
-          final TopicModel newTopicMap = TopicModel(
-            title: title,
-            content: content,
-            order: nextOrder,
-            hasTopics: false,
-            topics: [],
+      for (int i = 0; i < modules.length; i++) {
+        if (modules[i].order.toString() == _activeModuleIdForceCreation) {
+          final List<TopicModel> updatedTopics = List.from(modules[i].topics);
+          updatedTopics.add(
+            TopicModel(
+              title: title,
+              content: content,
+              order: updatedTopics.length + 1,
+              hasTopics: false,
+              topics: [],
+            ),
           );
-          topicList.add(newTopicMap);
+          modules[i] = modules[i].copyWith(topics: updatedTopics);
           break;
         }
       }
+      List<Map<String, dynamic>> modulesJson = modules
+          .map((m) => m.toJson())
+          .toList();
       await FirebaseFirestore.instance
           .collection("courses")
-          .doc(widget.course.id.toString())
-          .update({'module': modules});
-      _reloadCourseFromFirestore();
+          .doc(_localCourse.id.toString())
+          .update({'module': modulesJson});
+      await _reloadCourseFromFirestore();
       setState(() {
         _isSaving = false;
         _isCreatingNewTopic = false;
@@ -377,7 +576,7 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
         selectedItemId = null; // Regresa el panel derecho a su estado inicial
         selectedItemTitle = null;
       });
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("✅ ¡Nuevo tema agregado con éxito!"),
@@ -386,28 +585,34 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
         );
       }
     } catch (e) {
-      setState(() {
-        _isSaving = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("❌ Error al crear el tema: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ Error al crear el tema: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   /// function buildQuizEditor
-  ///
   Widget _buildQuizEditor() {
     return QuestionEditWidget(
       questions: activeQuizQuestions,
-      onSave: (update) {},
+      onSave: (updateQuestion) => _updateQuiz(updateQuestion),
+      onCancel: () {
+        setState(() {
+          selectedItemId = null;
+          selectedItemType = null;
+        });
+      },
     );
   }
 
-  ///
   /// method update a Topic in the sources
   Future<void> _updateTopic(String newTitle, String newContent) async {
     if (selectedItemId == null || currentSelectedTopic == null) return;
@@ -421,7 +626,7 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
 
     try {
       // 1. Crear una copia de los módulos actuales del curso para modificar localmente
-      List<ModuleModel> modules = List<ModuleModel>.from(widget.course.module);
+      List<ModuleModel> modules = List<ModuleModel>.from(_localCourse.module);
       bool moduleFound = false;
 
       for (int i = 0; i < modules.length; i++) {
@@ -430,11 +635,12 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
           bool topicFound = false;
 
           for (int j = 0; j < topics.length; j++) {
-            if (topics[j].order.toString() == topicOrder ||
+            if ((j + 1).toString() == topicOrder ||
                 topics[j].title == currentSelectedTopic.title) {
               topics[j] = topics[j].copyWith(
                 title: newTitle,
                 content: newContent,
+                order: j + 1,
               );
               topicFound = true;
               break;
@@ -461,9 +667,9 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
       // 3. Actualizar en Firestore
       await FirebaseFirestore.instance
           .collection('courses')
-          .doc(widget.course.id)
+          .doc(_localCourse.id.toString())
           .update({'module': modulesJson});
-      _reloadCourseFromFirestore();
+      await _reloadCourseFromFirestore();
       // 4. Actualizar el estado local
       if (mounted) {
         setState(() {
@@ -538,7 +744,6 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
           'questions': module.questions!
               .map(
                 (q) => {
-                  'id': q.id as String,
                   'questionText': q.questionText,
                   'options':
                       q.options, // Es la lista List<String> de alternativas
@@ -600,6 +805,100 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
       }
     } catch (e) {
       debugPrint("ERROR al recargar el curso: $e");
+    }
+  }
+
+  Future<void> _deleteTopic() async {
+    if (selectedItemId == null || currentSelectedTopic == null) return;
+    List<String> parts = selectedItemId!.split(".");
+    String moduleOrder = parts[0];
+    String topicOrder = parts.length > 1 ? parts[1] : "";
+    bool confirm =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("¿Eliminiar Tema?"),
+            content: Text(
+              "¿Estás seguro de que desea eliminar el tema?  Esta acción no se puede deshacer",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text("Cancelar"),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text("Eliminar"),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirm) return;
+    setState(() {
+      _isSaving = true;
+    });
+    try {
+      List<ModuleModel> modules = List<ModuleModel>.from(_localCourse.module);
+      bool topicDeleted = false;
+      for (int i = 0; i < modules.length; i++) {
+        if (modules[i].order.toString() == moduleOrder) {
+          final topics = List<TopicModel>.from(modules[i].topics);
+          int initialLenght = topics.length;
+          topics.removeWhere(
+            (t) =>
+                t.order.toString() == topicOrder ||
+                t.title == currentSelectedTopic.title,
+          );
+          if (topics.length < initialLenght) {
+            for (int j = 0; j < topics.length; j++) {
+              topics[j] = topics[j].copyWith(order: j + 1);
+            }
+            modules[i] = modules[i].copyWith(topics: topics);
+            topicDeleted = true;
+          }
+          break;
+        }
+      }
+      if (!topicDeleted) {
+        throw Exception("No se encontro el tema para eliminar");
+      }
+      List<Map<String, dynamic>> modulesJson = modules
+          .map((m) => m.toJson())
+          .toList();
+      await FirebaseFirestore.instance
+          .collection("courses")
+          .doc(_localCourse.id.toString())
+          .update({'module': modulesJson});
+
+      await _reloadCourseFromFirestore();
+
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+          selectedItemId = null;
+          selectedItemTitle = null;
+          currentSelectedTopic = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Tema eliminado con éxito"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("error al eliminiar "),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

@@ -1,88 +1,287 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  final FlutterTts _flutterTts = FlutterTts();
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isAudioPlaying = false;
+  String _breathText = "Inhale";
+  bool _isAnimating = false;
+
+  final User? _user = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    );
+    _animation = Tween<double>(
+      begin: 1.0,
+      end: 1.5,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller.addStatusListener((status) {
+      if (!_isAnimating) return;
+      if (status == AnimationStatus.completed) {
+        setState(() => _breathText = "Exhale");
+        _speak("Exhale");
+        _controller.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        setState(() => _breathText = "Inhale");
+        _speak("Inhale");
+        _controller.forward();
+      }
+    });
+    _audioPlayer.setReleaseMode(ReleaseMode.loop);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupTts();
+    });
+  }
+
+  @override
+  void dispose() {
+    _flutterTts.stop();
+    _controller.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  void _toggleAmbientSound() async {
+    if (_isAudioPlaying) {
+      await _audioPlayer.stop();
+      setState(() {
+        _isAudioPlaying = false;
+      });
+    } else {
+      await _flutterTts.stop();
+      await _audioPlayer.play(AssetSource("audio/white_noise.mp3"));
+      setState(() {
+        _isAudioPlaying = true;
+      });
+    }
+  }
+
+  void toggleBreathing() {
+    setState(() {
+      _isAnimating = !_isAnimating;
+      if (_isAnimating) {
+        _breathText = "Inhale";
+        _speak("Inhale");
+        _controller.forward();
+      } else {
+        _controller.reset();
+        _flutterTts.stop();
+        _breathText = "Inhale";
+      }
+    });
+  }
+
+  void _setupTts() async {
+    await _flutterTts.setLanguage("es-US");
+    await _flutterTts.setPitch(1.0);
+    await _flutterTts.setSpeechRate(0.5);
+  }
+
+  Future<void> _speak(String text) async {
+    await _flutterTts.speak(text);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final String firstName = _user?.displayName?.split(' ').first ?? "Usuario";
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header con Material Icons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'fiuu app',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4A6A6A),
+      child: Scaffold(
+        backgroundColor: Color(0xFFF5F7F7),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con Material Icons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Fiuu app',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4A6A6A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Hola, $firstName 👋",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == "logout") {
+                        bool confim = await _showLogoutDialog(context);
+                        if (confim) {
+                          await FirebaseAuth.instance.signOut();
+                        }
+                      }
+                    },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    itemBuilder: (BuildContext context) => [
+                      PopupMenuItem<String>(
+                        value: "logout",
+                        child: Row(
+                          children: const [
+                            Icon(
+                              Icons.logout,
+                              color: Colors.redAccent,
+                              size: 20,
+                            ),
+                            SizedBox(width: 20),
+                            Text(
+                              "Cerrar session",
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    child: CircleAvatar(
+                      backgroundColor: const Color(0xFFF9D5C5),
+                      radius: 20,
+                      backgroundImage: _user?.photoURL != null
+                          ? NetworkImage(_user!.photoURL!)
+                          : null,
+                      child: _user?.photoURL == null
+                          ? const Icon(
+                              Icons.person_outline,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 25),
+
+              _buildBreathingCard(),
+
+              const SizedBox(height: 25),
+
+              const Text(
+                'Herramienta de Relajación',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4A6A6A),
+                ),
+              ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  // Iconos Material: music_note y place
+                  Expanded(
+                    child: InkWell(
+                      onTap: _toggleAmbientSound,
+                      borderRadius: BorderRadius.circular(20),
+                      child: _buildToolCard(
+                        'Sonido Ambientales',
+                        _isAudioPlaying
+                            ? "Detener Sonido"
+                            : 'Reproducir ruido blanco',
+                        _isAudioPlaying
+                            ? Icons.stop_circle_outlined
+                            : Icons.music_note_outlined,
+                        _isAudioPlaying
+                            ? Colors.redAccent
+                            : Colors.orangeAccent,
                       ),
                     ),
-                  ],
-                ),
-                const CircleAvatar(
-                  backgroundColor: Color(0xFFF9D5C5),
-                  radius: 20,
-                  child: Icon(
-                    Icons.person_outline,
-                    color: Colors.white,
-                  ), // Icono Material
-                ),
-              ],
-            ),
-            const SizedBox(height: 25),
-
-            _buildBreathingCard(),
-
-            const SizedBox(height: 25),
-
-            const Text(
-              'Herramienta de Relajación',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4A6A6A),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showGroundingExercise(context),
+                      borderRadius: BorderRadius.circular(20),
+                      child: _buildToolCard(
+                        'Diminuye la ansiedad',
+                        'Iniciar Método',
+                        Icons.place_outlined,
+                        Colors.blueAccent,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
-                // Iconos Material: music_note y place
-                Expanded(
-                  child: _buildToolCard(
-                    'Ambient Sound',
-                    'Play White Noise',
-                    Icons.music_note_outlined,
-                    Colors.orangeAccent,
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: _buildToolCard(
-                    '5-4-3-2-1 Fix',
-                    'Start Method',
-                    Icons.place_outlined,
-                    Colors.blueAccent,
-                  ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 25),
-            _buildTipCard(),
-            const SizedBox(height: 80),
-          ],
+              const SizedBox(height: 25),
+              _buildTipCard(),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<bool> _showLogoutDialog(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('¿Cerrar sesión?'),
+            content: const Text(
+              '¿Estás seguro de que deseas salir de fiuu app?',
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text(
+                  'Cancelar',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF58A6A6),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('Salir'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Widget _buildBreathingCard() {
@@ -109,39 +308,42 @@ class HomeScreen extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 20),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              _buildCircle(140, 0.1),
-              _buildCircle(110, 0.2),
-              Container(
-                width: 85,
-                height: 85,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF58A6A6),
-                ),
-                child: const Center(
-                  child: Text(
-                    'Inhale',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+          ScaleTransition(
+            scale: _animation,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                _buildCircle(140, 0.1),
+                _buildCircle(110, 0.2),
+                Container(
+                  width: 85,
+                  height: 85,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF58A6A6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _breathText,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: toggleBreathing,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF58A6A6),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
             ),
-            child: const Text('Start Session'),
+            child: Text(_isAnimating ? "Stop Session" : 'Start Session'),
           ),
         ],
       ),
@@ -179,7 +381,7 @@ class HomeScreen extends StatelessWidget {
             title,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              fontSize: 11,
               color: Color(0xFF4A6A6A),
             ),
           ),
@@ -211,9 +413,7 @@ class HomeScreen extends StatelessWidget {
         color: const Color(0xFF355454),
         borderRadius: BorderRadius.circular(25),
         image: const DecorationImage(
-          image: NetworkImage(
-            'https://www.transparenttextures.com/patterns/cubes.png',
-          ), // Simulación de textura
+          image: AssetImage("assets/img/cubes.png"),
           opacity: 0.05,
         ),
       ),
@@ -239,6 +439,149 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showGroundingExercise(BuildContext context) {
+    int currentStep = 5;
+    final stepsData = {
+      5: {
+        "title": "5 cosas que puedes ver",
+        "desc": "Observa a tu alrededor y detalle 5 objetos minuciosamente.",
+        "icon": Icons.visibility_outlined,
+        "speak": "Busca cinco cosas que puedas ver a tu alrededor.",
+      },
+      4: {
+        "title": "4 Cosas que puedas tocar",
+        "desc": "Siente la textura de tu ropa, el suelo o un objeto cercano",
+        "icon": Icons.touch_app_outlined,
+        "speak": "Identifica cuatro cosas que puedas tocar o sentir.",
+      },
+      3: {
+        "title": "3 Cosas que puedas escuchar",
+        "desc": "Presta atención a los sonidos lejanos o de fondo.",
+        "icon": Icons.hearing_disabled_outlined,
+        "speak": "Presta atencion a tres sonidos que puedas escuchar.",
+      },
+      2: {
+        "title": "2 Cosas que puedas probar",
+        "desc": "Trata de identificar olores en el ambiente o en tu piel.",
+        "icon": Icons.air,
+        "speak": "Intenta percibir dos cosas que puedas oler.",
+      },
+      1: {
+        "title": "1 Cosa que puedas probar",
+        "desc":
+            "Siente el sabor actual en tu boca o imagina un sabor agradable",
+        "icon": Icons.restaurant_menu_outlined,
+        "speak": "Por último, nota una cosa que puedar probar.",
+      },
+    };
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _speak(stepsData[currentStep]!["speak"] as String);
+        });
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final currentData = stepsData[currentStep]!;
+            return Container(
+              padding: const EdgeInsets.all(25),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: const Color(0XFFF0F9F8),
+                    child: Icon(
+                      currentData["icon"] as IconData,
+                      size: 40,
+                      color: const Color(0XFF58A6A6),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    currentData["title"] as String,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0XFF4A6A6A),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    currentData["desc"] as String,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (currentStep > 1) {
+                        setModalState(() {
+                          currentStep--;
+                        });
+                        _speak(stepsData[currentStep]!["speak"] as String);
+                      } else {
+                        Navigator.pop(context);
+                        _speak("Excelente. Haz completado.");
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Buen trabajo Has completado el ejercicio de enraizamiento",
+                            ),
+                            backgroundColor: Color(0XFF58A6A6),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: Text(currentStep == 1 ? "Finalizar" : "Siguiente"),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      _flutterTts.stop();
+                      Navigator.pop(context);
+                    },
+                    child: const Text(
+                      "Cancelar",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

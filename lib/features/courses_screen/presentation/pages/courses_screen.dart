@@ -14,10 +14,9 @@ class CoursesScreen extends StatelessWidget {
         Positioned.fill(
           child: Opacity(
             opacity: 0.1,
-            child: Image.network(
-              'https://www.transparenttextures.com/patterns/lined-paper.png',
-              repeat: ImageRepeat.repeat,
-              color: const Color(0xFF00ACC1),
+            child: Image(
+              image: const AssetImage("assets/img/asfalt_dark.png"),
+              fit: BoxFit.cover,
             ),
           ),
         ),

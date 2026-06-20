@@ -3,18 +3,23 @@ import 'package:flutter/material.dart';
 
 class QuestionEditWidget extends StatefulWidget {
   final List<QuestionModel> questions;
-  final Function(List<QuestionModel> updatedQuestions) onSave;
+  final Future<void> Function(List<QuestionModel> updatedQuestions) onSave;
+  final VoidCallback? onCancel;
   const QuestionEditWidget({
     super.key,
     required this.questions,
     required this.onSave,
+    this.onCancel,
   });
   @override
   State<QuestionEditWidget> createState() => _QuestionEditWidget();
 }
 
 class _QuestionEditWidget extends State<QuestionEditWidget> {
+  bool _isEditQuestion = false;
   late List<QuestionModel> _localQuestions;
+  final FocusNode _newQuestionFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   @override
   void initState() {
     super.initState();
@@ -29,16 +34,48 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
     }
   }
 
+  @override
+  void dispose() {
+    _newQuestionFocusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _addNewQuestion() {
-    setState(() {
-      _localQuestions.add(
-        QuestionModel(
-          questionText: '',
-          options: ['', '', '', ''],
-          correctIndex: -1,
+    if (!_isEditQuestion) {
+      setState(() {
+        _isEditQuestion = true;
+        _localQuestions.add(
+          QuestionModel(
+            questionText: '',
+            options: ['', '', '', ''],
+            correctIndex: -1,
+          ),
+        );
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+        _newQuestionFocusNode.requestFocus();
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("⚠️ Estas editando"),
+          backgroundColor: Colors.red,
         ),
       );
-    });
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _removeQuestion(int index) {
@@ -76,8 +113,28 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
                     ),
                   ],
                 ),
+                Expanded(child: Text("")),
+                if (widget.onCancel != null)
+                  TextButton.icon(
+                    onPressed: widget.onCancel,
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    label: const Text(
+                      "Cancelar",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: TextButton.styleFrom(backgroundColor: Colors.red),
+                  ),
+
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  onPressed: () => widget.onSave(_localQuestions),
+                  onPressed: () async {
+                    await widget.onSave(_localQuestions);
+                    if (mounted) {
+                      setState(() {
+                        _isEditQuestion = false;
+                      });
+                    }
+                  },
                   icon: Icon(Icons.save, color: Colors.white),
                   label: const Text(
                     "Guardar",
@@ -95,6 +152,7 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
             child: _localQuestions.isEmpty
                 ? _buildEmptyState()
                 : ListView.builder(
+                    controller: _scrollController,
                     padding: const EdgeInsets.all(16),
                     itemCount: _localQuestions.length,
                     itemBuilder: (context, index) {
@@ -112,6 +170,7 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
             child: Center(
               child: ElevatedButton.icon(
                 onPressed: _addNewQuestion,
+                icon: const Icon(Icons.add, color: Colors.white),
                 label: const Text(
                   "Añadir Pregunta",
                   style: TextStyle(
@@ -156,14 +215,18 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
 
   Widget _buildQuestionCard(int index) {
     final questionItem = _localQuestions[index];
+    final isLastItem = index == _localQuestions.length + 1;
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadiusGeometry.circular(8),
+        side: isLastItem && _isEditQuestion
+            ? const BorderSide(color: Color(0XFF1A237E), width: 1.5)
+            : BorderSide.none,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
-        padding: const EdgeInsetsGeometry.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -178,7 +241,13 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    //remover current elemento
+                    setState(() {
+                      _localQuestions.removeAt(index);
+                      _isEditQuestion = false;
+                    });
+                  },
                   icon: Icon(Icons.delete_outline, color: Colors.redAccent),
                 ),
               ],
@@ -186,11 +255,19 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
             const SizedBox(height: 8),
             TextFormField(
               initialValue: questionItem.questionText,
+              focusNode: (isLastItem && _isEditQuestion)
+                  ? _newQuestionFocusNode
+                  : null,
               decoration: const InputDecoration(
                 labelText: "Enunciado de la Pregunta",
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
+              onChanged: (val) {
+                setState(() {
+                  _localQuestions[index] = questionItem.copyWith(question: val);
+                });
+              },
             ),
             const SizedBox(height: 8),
             const Text(
@@ -225,7 +302,21 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       children: [
-                        Radio<int>(value: optionIndex),
+                        Radio<int>(
+                          value: optionIndex,
+                          groupValue: questionItem.correctIndex >= 0
+                              ? questionItem.correctIndex
+                              : null,
+                          onChanged: (int? selectdIndex) {
+                            if (selectdIndex != null) {
+                              setState(() {
+                                _localQuestions[index] = questionItem.copyWith(
+                                  correctIndex: selectdIndex,
+                                );
+                              });
+                            }
+                          },
+                        ),
                         Expanded(
                           child: TextFormField(
                             initialValue: optionText,
@@ -237,9 +328,12 @@ class _QuestionEditWidget extends State<QuestionEditWidget> {
                             ),
                             onChanged: (val) {
                               setState(() {
-                                questionItem.options[optionIndex] = val;
+                                final newOptions = List<String>.from(
+                                  questionItem.options,
+                                );
+                                newOptions[optionIndex] = val;
                                 _localQuestions[index] = questionItem.copyWith(
-                                  options: questionItem.options,
+                                  options: newOptions,
                                 );
                               });
                             },

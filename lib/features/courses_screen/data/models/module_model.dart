@@ -23,24 +23,8 @@ class ModuleModel {
       topics:
           (map['topics'] as List<dynamic>?)
               ?.map(
-                (topic) => TopicModel(
-                  title: topic['title'] as String? ?? 'Sin título',
-                  order: int.tryParse(topic['order'].toString()) ?? 0,
-                  hasTopics: topic['hasTopics'] as bool? ?? false,
-                  content: topic['content'] as String? ?? '',
-                  topics:
-                      (map['topics'] as List<dynamic>?)
-                          ?.map(
-                            (topic) => TopicModel.fromMap(
-                              topic as Map<String, dynamic>,
-                            ),
-                          )
-                          .toList() ??
-                      [],
-                ),
-              )
-              .toList() ??
-          [],
+                (topic) => TopicModel.fromMap(topic))
+              .toList() ?? [],
       questions: map['questions'] != null
           ? (map['questions'] as List)
                 .map((q) => QuestionModel.fromJson(q as Map<String, dynamic>))

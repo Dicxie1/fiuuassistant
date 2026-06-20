@@ -1,7 +1,10 @@
+import 'package:fiuuassistant/features/daily_mood/presentation/screens/mood_auth_guard_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fiuuassistant/features/courses_screen/presentation/pages/courses_screen.dart';
-import 'package:fiuuassistant/screen/setting_screen.dart';
 import 'package:fiuuassistant/features/home_screen/presentation/pages/home_screen.dart';
+import 'package:fiuuassistant/features/daily_mood/presentation/screens/mood_registration_screen.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 class NavigationShellScreen extends StatefulWidget {
   const NavigationShellScreen({super.key});
@@ -14,22 +17,41 @@ class _NavigationShellScreenState extends State<NavigationShellScreen> {
   // Rastrear el índice seleccionado para saber qué pantalla mostrar
   int _selectedIndex = 0;
 
-  // Lista de rutas correspondientes a los iconos.
-  // Es vital que estas rutas coincidan con las de 'main.dart'.
-  final List<Widget> _screens = [
-    HomeScreen(),
-    CoursesScreen(),
-    SettingsScreen(),
-  ];
+
+  @override
+  void initState() {
+    super.initState();
+    inicializarApp();
+  }
+
+  void inicializarApp() async {
+    await Future.delayed(const Duration(seconds: 2));
+    FlutterNativeSplash.remove();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // IndexedStack es perfecto para BottomNav: mantiene el estado de todas
-      // las pantallas pero solo muestra la del índice seleccionado.
-      body: IndexedStack(index: _selectedIndex, children: _screens),
-      // El caparazón ahora contiene la barra de navegación inferior
-      bottomNavigationBar: _buildBottomNav(),
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF58A6A6)),
+            ),
+          );
+        }
+        final bool isAuthenticated = snapshot.hasData && snapshot.data != null;
+        final List<Widget> screens = [
+          HomeScreen(),
+          CoursesScreen(),
+          isAuthenticated ? MoodRegistrationScreen() : MoodAuthGuardScreen(),
+        ];
+        return Scaffold(
+          body: IndexedStack(index: _selectedIndex, children: screens),
+          bottomNavigationBar: _buildBottomNav(),
+        );
+      },
     );
   }
 
