@@ -8,6 +8,7 @@ class CoursesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final TextEditingController searchController = TextEditingController();
     return Stack(
       children: [
         // Fondo con patrón (se mantiene igual)
@@ -41,7 +42,42 @@ class CoursesScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-
+                TextField(
+                  controller: searchController,
+                  style: TextStyle(color: Color(0xFF4A6A6A), fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: "Buscar cursos",
+                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(left: 18, right: 12),
+                      child: Icon(
+                        Icons.search,
+                        color: Color(0xFF4A6A6A),
+                        size: 24,
+                      ),
+                    ),
+                    prefixIconConstraints: const BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 40,
+                    ),
+                    filled: true,
+                    fillColor: const Color.fromARGB(255, 236, 244, 246),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(50),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(50),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(50),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 // Implementación con Firestore
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(

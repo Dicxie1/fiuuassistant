@@ -49,7 +49,7 @@ class CourseDetailsScreen extends StatelessWidget {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(20.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -147,11 +147,9 @@ class CourseDetailsScreen extends StatelessWidget {
 
   Widget _buildFixedBottomButton(BuildContext context, CourseModel course) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        10,
-        16,
-        20,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
       ), // Ajuste para el área segura
       decoration: BoxDecoration(
         color: Colors.white,
@@ -163,46 +161,50 @@ class CourseDetailsScreen extends StatelessWidget {
           ),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: () {
-          List<TopicModel> allTopicsWithContent = [];
-          for (var i = 0; i < course.module.length; i++) {
-            var module = course.module[i];
-            var topicsInModule = module.topics;
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        child: ElevatedButton(
+          onPressed: () {
+            List<TopicModel> allTopicsWithContent = [];
+            for (var i = 0; i < course.module.length; i++) {
+              var module = course.module[i];
+              var topicsInModule = module.topics;
 
-            String unitLabel = "Unidad ${_toRoman(i + 1)}: ${module.title}";
-            for (int j = 0; topicsInModule.length > j; j++) {
-              bool isLastTopic = (j == topicsInModule.length - 1);
+              String unitLabel = "Unidad ${_toRoman(i + 1)}: ${module.title}";
+              for (int j = 0; topicsInModule.length > j; j++) {
+                bool isLastTopic = (j == topicsInModule.length - 1);
 
-              allTopicsWithContent.add(
-                module.topics[j].copyWith(
-                  parentModuleName: unitLabel,
-                  checkpointQuestions: isLastTopic ? module.questions : null,
-                ),
-              );
+                allTopicsWithContent.add(
+                  module.topics[j].copyWith(
+                    parentModuleName: unitLabel,
+                    checkpointQuestions: isLastTopic ? module.questions : null,
+                  ),
+                );
+              }
             }
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CourseReaderScreen(
-                topics: allTopicsWithContent,
-                initialIndex: 0,
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CourseReaderScreen(
+                  topics: allTopicsWithContent,
+                  initialIndex: 0,
+                ),
               ),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1A237E),
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 54), // "Expands" el botón
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1A237E),
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 54), // "Expands" el botón
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
           ),
-        ),
-        child: const Text(
-          "INICIAR LECTURA",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          child: const Text(
+            "INICIAR LECTURA",
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );
