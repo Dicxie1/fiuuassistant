@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class MoodAuthGuardScreen extends StatefulWidget {
   const MoodAuthGuardScreen({super.key});
@@ -37,10 +36,6 @@ class _MoodAuthGuardScreen extends State<MoodAuthGuardScreen> {
             "100913023077-mkib000k17f6s0h543r90gvh8ff53uap.apps.googleusercontent.com",
       );
       final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
-      if (googleUser == null) {
-        debugPrint("User cancelled the Google sign-in flow");
-        return;
-      }
       debugPrint("User selected account: ${googleUser.email}");
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       debugPrint(

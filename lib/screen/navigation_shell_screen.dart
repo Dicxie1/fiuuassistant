@@ -17,7 +17,6 @@ class _NavigationShellScreenState extends State<NavigationShellScreen> {
   // Rastrear el índice seleccionado para saber qué pantalla mostrar
   int _selectedIndex = 0;
 
-
   @override
   void initState() {
     super.initState();
@@ -68,10 +67,10 @@ class _NavigationShellScreenState extends State<NavigationShellScreen> {
         children: [
           // Pasamos el índice (0, 1, 2) y la ruta
           _buildNavItem(Icons.home_filled, 'Inicio', '/', 0),
-          _buildNavItem(Icons.import_contacts_outlined, 'Cursos', '/cursos', 1),
+          _buildNavItem(Icons.school_outlined, 'Cursos', '/cursos', 1),
           _buildNavItem(
-            Icons.settings_outlined,
-            'Configuración',
+            Icons.auto_stories_outlined,
+            'Diario',
             '/configuracion',
             2,
           ),
