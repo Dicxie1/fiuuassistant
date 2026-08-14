@@ -118,7 +118,12 @@ class _MoodRegistrationScreen extends State<MoodRegistrationScreen> {
         child: Center(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.only(
+              left: 18.0,
+              right: 18.0,
+              top: 35.0,
+              bottom: 0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -130,17 +135,17 @@ class _MoodRegistrationScreen extends State<MoodRegistrationScreen> {
                     color: Color(0xFF4A6A6A),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 5),
 
                 // Grid de selección de Emojis
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.1,
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.0,
                   ),
                   itemCount: _emotions.length,
                   itemBuilder: (context, index) {
@@ -169,32 +174,37 @@ class _MoodRegistrationScreen extends State<MoodRegistrationScreen> {
                             width: 2,
                           ),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              item['emoji'],
-                              style: const TextStyle(fontSize: 32),
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(1.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  item['emoji'],
+                                  style: const TextStyle(fontSize: 32),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  item['label'],
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: const Color(0xFF4A6A6A),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              item['label'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: const Color(0xFF4A6A6A),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     );
                   },
                 ),
 
-                const SizedBox(height: 35),
+                const SizedBox(height: 15),
                 const Text(
                   '¿Qué tan intensa es esta emoción?',
                   style: TextStyle(
@@ -203,7 +213,7 @@ class _MoodRegistrationScreen extends State<MoodRegistrationScreen> {
                     color: Color(0xFF4A6A6A),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
 
                 // Slider de Intensidad personalizado
                 Row(
@@ -234,7 +244,7 @@ class _MoodRegistrationScreen extends State<MoodRegistrationScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 15),
                 const Text(
                   '¿Quieres añadir alguna nota o pensamiento? (Opcional)',
                   style: TextStyle(
@@ -243,7 +253,7 @@ class _MoodRegistrationScreen extends State<MoodRegistrationScreen> {
                     color: Color(0xFF4A6A6A),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
 
                 // Caja de texto para notas descriptivas
                 TextField(
@@ -263,7 +273,7 @@ class _MoodRegistrationScreen extends State<MoodRegistrationScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
 
                 // Botón de guardar con indicador de carga
                 _isSaving
