@@ -81,7 +81,7 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
               child: modulesList.isEmpty
                   ? _buildEmptyState(context)
                   : ReorderableListView(
-                      onReorder: _reordeModules,
+                      onReorderItem: _reordeModules,
                       children: modulesList.map((module) {
                         // Extraemos temas y preguntas de este módulo específico
                         final List<TopicModel> topicsList = module.topics ?? [];
@@ -552,6 +552,7 @@ class _CoursesContentScreenState extends State<CoursesContentScreen> {
             TopicModel(
               title: title,
               content: content,
+              courseId: widget.course.id,
               order: updatedTopics.length + 1,
               hasTopics: false,
               topics: [],

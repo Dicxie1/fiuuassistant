@@ -7,6 +7,7 @@ class TopicModel {
   final bool hasTopics;
   final String? parentModuleName;
   final List<TopicModel> topics;
+  final String courseId;
   final List<QuestionModel>? checkpointQuestions;
 
   TopicModel({
@@ -15,6 +16,7 @@ class TopicModel {
     required this.hasTopics,
     required this.topics,
     required this.content,
+    required this.courseId,
     this.parentModuleName,
     this.checkpointQuestions,
   });
@@ -24,6 +26,7 @@ class TopicModel {
       order: int.tryParse(map['order'].toString()) ?? 0,
       hasTopics: map['hasTopics'] as bool? ?? false,
       content: map['content'] as String? ?? '',
+      courseId: map['courseId'] as String? ?? '',
       topics:
           (map['subtopics'] as List<dynamic>?)
               ?.map((topic) => TopicModel.fromMap(topic))
@@ -37,6 +40,7 @@ class TopicModel {
     int? order,
     bool? hasTopics,
     List<TopicModel>? topics,
+    String? courseId,
     String? parentModuleName,
     List<QuestionModel>? checkpointQuestions,
   }) {
@@ -45,17 +49,20 @@ class TopicModel {
       order: order ?? this.order,
       hasTopics: hasTopics ?? this.hasTopics,
       topics: topics ?? this.topics,
+      courseId: courseId ?? this.courseId,
       content: content ?? this.content,
       parentModuleName: parentModuleName ?? this.parentModuleName,
       checkpointQuestions: checkpointQuestions ?? this.checkpointQuestions,
     );
   }
+
   Map<String, dynamic> toMap() {
     return {
       'title': title,
       'order': order,
       'hasTopics': hasTopics,
       'content': content,
+      'courseId': courseId, 
       'subtopics': topics
           .map(
             (topic) => {

@@ -1,14 +1,24 @@
 import 'package:fiuuassistant/features/courses_screen/data/models/topic_model.dart';
+import 'package:fiuuassistant/features/progress/domain/usecases/add_xp.dart';
 import 'package:flutter/material.dart';
 import 'package:fiuuassistant/features/courses_screen/data/models/question_model.dart';
+// Agrega estas líneas después de las importaciones existentes
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fiuuassistant/features/progress/data/repositories/progress_repository_imp.dart';
+import 'package:fiuuassistant/features/progress/data/datasources/progress_remote_data_source.dart';
+import 'package:fiuuassistant/features/progress/domain/usecases/check_daily_streak.dart';
+import 'package:fiuuassistant/features/progress/domain/usecases/mark_topic_completed.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CourseReaderScreen extends StatefulWidget {
   final List<dynamic> topics;
   final int initialIndex;
+  final String courseId;
   const CourseReaderScreen({
     super.key,
     required this.topics,
     this.initialIndex = 0,
+    required this.courseId,
   });
   @override
   State<CourseReaderScreen> createState() => _CourseReaderScreenState();
@@ -17,18 +27,66 @@ class CourseReaderScreen extends StatefulWidget {
 class _CourseReaderScreenState extends State<CourseReaderScreen> {
   late PageController _pageController;
   late int _currentIndex = 0;
+  late ProgressRepositoryImp _progressRepository;
+  late AddXP _addXPUseCase;
+  late MarkTopicCompleted _markTopicCompletedUseCase;
+  final User? _user = FirebaseAuth.instance.currentUser;
+  late CheckDailyStreak _checkDailyStreakUseCase;
+
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+
+    final dataSource = ProgressRemoteDataSourceImp(FirebaseFirestore.instance);
+    _progressRepository = ProgressRepositoryImp(dataSource);
+    _addXPUseCase = AddXP(_progressRepository);
+    _checkDailyStreakUseCase = CheckDailyStreak(_progressRepository);
+    _markTopicCompletedUseCase = MarkTopicCompleted(_progressRepository);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _registerTopicRead(_currentIndex);
+    });
+  }
+
+  TopicModel? _getTopicModel(dynamic item) {
+    if (item is TopicModel) return item;
+    if (item is Map<String, dynamic>) return TopicModel.fromMap(item);
+    return null;
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _registerTopicRead(int index) async {
+    try {
+      if (_user != null && index < widget.topics.length) {
+        final topic = _getTopicModel(widget.topics[index]);
+        if (topic == null) return;
+
+        final topicId = '${widget.courseId}_${topic.title.trim()}';
+        final courseId = widget.courseId;
+
+        await _addXPUseCase.call(
+          userId: _user.uid,
+          topicId: topicId,
+          courseId: courseId,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar el progreso: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -58,8 +116,9 @@ class _CourseReaderScreenState extends State<CourseReaderScreen> {
             child: PageView.builder(
               controller: _pageController,
               itemCount: widget.topics.length,
-              onPageChanged: (index) {
+              onPageChanged: (index) async {
                 setState(() => _currentIndex = index);
+                await _registerTopicRead(index);
               },
 
               itemBuilder: (context, index) {
@@ -172,18 +231,68 @@ class _CourseReaderScreenState extends State<CourseReaderScreen> {
           else
             const SizedBox.shrink(),
           ElevatedButton.icon(
-            onPressed: () {
+            onPressed: () async {
               if (isLastPage) {
-                Navigator.pop(context);
+                if (_user == null) {
+                  Navigator.pop(context);
+                  return;
+                }
+                final currentTopic = widget.topics[_currentIndex] as TopicModel;
+
+                final topicId = '${widget.courseId}_${currentTopic.title}';
+                final courseId = widget.courseId;
+                setState(() => _isLoading = true);
+
+                try {
+                  // Agregar XP por completar el tema
+                  await _addXPUseCase.call(
+                    userId: _user.uid,
+                    topicId: topicId, // Usamos el título como ID único
+                    courseId: courseId,
+                  );
+                  // Mostrar notificación de XP ganado
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ +50 XP por completar el tema!'),
+                      backgroundColor: Color(0xFF58A6A6),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                  Navigator.pop(context);
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error al registrar progreso: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                } finally {
+                  if (context.mounted) {
+                    setState(() => _isLoading = false);
+                  }
+                }
               } else {
                 _pageController.nextPage(
-                  duration: const Duration(microseconds: 300),
+                  duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
                 );
               }
             },
-            label: Text(isLastPage ? "Finalizar" : "Siguiente"),
-            icon: Icon(isLastPage ? Icons.check_circle : Icons.arrow_forward),
+            label: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(isLastPage ? "Finalizar (+50 XP)" : "Siguiente"),
+            icon: _isLoading
+                ? null
+                : Icon(isLastPage ? Icons.check_circle : Icons.arrow_forward),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A237E),
               foregroundColor: Colors.white,
@@ -240,8 +349,6 @@ class _CourseReaderScreenState extends State<CourseReaderScreen> {
                       itemCount: questions.length,
                       itemBuilder: (context, index) {
                         final question = questions[index];
-                        bool isCorrect =
-                            userAnswers[index] == question.correctIndex;
                         bool isAnswered = userAnswers[index] != null;
                         return Card(
                           elevation: 0,
