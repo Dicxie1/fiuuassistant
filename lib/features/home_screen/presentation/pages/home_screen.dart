@@ -1,7 +1,14 @@
+import 'package:fiuuassistant/features/progress/domain/entities/user_progress.dart';
+import 'package:fiuuassistant/features/progress/domain/usecases/get_user_progress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+// Agrega al inicio con las otras importaciones
+import 'package:fiuuassistant/features/progress/data/repositories/progress_repository_imp.dart';
+import 'package:fiuuassistant/features/progress/data/datasources/progress_remote_data_source.dart';
+import 'package:fiuuassistant/features/progress/presentation/widgets/progress_card.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,12 +26,20 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isAudioPlaying = false;
   String _breathText = "Inhale";
   bool _isAnimating = false;
-
   final User? _user = FirebaseAuth.instance.currentUser;
+  late ProgressRepositoryImp _progressRepository;
+  late GetUserProgress _getUserProgress;
+  UserProgress? _userProgress;
+  bool _isLoadingProgress = true;
 
   @override
   void initState() {
     super.initState();
+    final dataSource = ProgressRemoteDataSourceImp(FirebaseFirestore.instance);
+    _progressRepository = ProgressRepositoryImp(dataSource);
+    _getUserProgress = GetUserProgress(_progressRepository);
+
+    _loadUserProgress();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
@@ -101,96 +116,22 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final String firstName = _user?.displayName?.split(' ').first ?? "Usuario";
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: Color(0xFFF5F7F7),
-        body: SingleChildScrollView(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Kit psicologico"),
+        backgroundColor: Color(0xFF58A6A6),
+        foregroundColor: Colors.white,
+      ),
+      backgroundColor: Color(0xFFF5F7F7),
+      body: SafeArea(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con Material Icons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Fiuu app',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF4A6A6A),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Hola, $firstName 👋",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) async {
-                      if (value == "logout") {
-                        bool confim = await _showLogoutDialog(context);
-                        if (confim) {
-                          await FirebaseAuth.instance.signOut();
-                        }
-                      }
-                    },
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    itemBuilder: (BuildContext context) => [
-                      PopupMenuItem<String>(
-                        value: "logout",
-                        child: Row(
-                          children: const [
-                            Icon(
-                              Icons.logout,
-                              color: Colors.redAccent,
-                              size: 20,
-                            ),
-                            SizedBox(width: 20),
-                            Text(
-                              "Cerrar session",
-                              style: TextStyle(
-                                color: Colors.redAccent,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    child: CircleAvatar(
-                      backgroundColor: const Color(0xFFF9D5C5),
-                      radius: 20,
-                      backgroundImage: _user?.photoURL != null
-                          ? NetworkImage(_user!.photoURL!)
-                          : null,
-                      child: _user?.photoURL == null
-                          ? const Icon(
-                              Icons.person_outline,
-                              color: Colors.white,
-                            )
-                          : null,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 25),
-
               _buildBreathingCard(),
 
-              const SizedBox(height: 25),
+              const SizedBox(height: 10),
 
               const Text(
                 'Herramienta de Relajación',
@@ -200,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen>
                   color: Color(0xFF4A6A6A),
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   // Iconos Material: music_note y place
@@ -238,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
 
-              const SizedBox(height: 25),
+              const SizedBox(height: 10),
               _buildTipCard(),
               const SizedBox(height: 40),
             ],
@@ -335,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 15),
           ElevatedButton(
             onPressed: toggleBreathing,
             style: ElevatedButton.styleFrom(
@@ -376,7 +317,7 @@ class _HomeScreenState extends State<HomeScreen>
       child: Column(
         children: [
           Icon(icon, color: color, size: 28),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           Text(
             title,
             style: const TextStyle(
@@ -408,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildTipCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF355454),
         borderRadius: BorderRadius.circular(25),
@@ -470,11 +411,11 @@ class _HomeScreenState extends State<HomeScreen>
         "speak": "Intenta percibir dos cosas que puedas oler.",
       },
       1: {
-        "title": "1 Cosa que puedas probar",
+        "title": "1 Cosa que puedás, probar",
         "desc":
             "Siente el sabor actual en tu boca o imagina un sabor agradable",
         "icon": Icons.restaurant_menu_outlined,
-        "speak": "Por último, nota una cosa que puedar probar.",
+        "speak": "Por último, nota una cosa que puedás, probar.",
       },
     };
 
@@ -506,17 +447,17 @@ class _HomeScreenState extends State<HomeScreen>
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 5),
                   CircleAvatar(
-                    radius: 40,
+                    radius: 30,
                     backgroundColor: const Color(0XFFF0F9F8),
                     child: Icon(
                       currentData["icon"] as IconData,
-                      size: 40,
+                      size: 30,
                       color: const Color(0XFF58A6A6),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 5),
                   Text(
                     currentData["title"] as String,
                     style: const TextStyle(
@@ -545,7 +486,7 @@ class _HomeScreenState extends State<HomeScreen>
                         _speak(stepsData[currentStep]!["speak"] as String);
                       } else {
                         Navigator.pop(context);
-                        _speak("Excelente. Haz completado.");
+                        _speak("Excelente. Haz completado. el ejercicio");
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -576,6 +517,7 @@ class _HomeScreenState extends State<HomeScreen>
                       style: TextStyle(color: Colors.grey),
                     ),
                   ),
+                  const SizedBox(height: 25),
                 ],
               ),
             );
@@ -583,5 +525,30 @@ class _HomeScreenState extends State<HomeScreen>
         );
       },
     );
+  }
+
+  Future<void> _loadUserProgress() async {
+    if (_user != null) {
+      try {
+        _userProgress = await _getUserProgress.call(_user.uid);
+      } catch (e) {
+        // Si hay error, crear progreso por defecto
+        _userProgress = UserProgress(
+          userId: _user.uid,
+          totalXP: 0,
+          currentLevel: 1,
+          currentStreak: 0,
+          longestStreak: 0,
+          lastActivityDate: DateTime.now(),
+          courses: [],
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isLoadingProgress = false);
+        }
+      }
+    } else {
+      setState(() => _isLoadingProgress = false);
+    }
   }
 }

@@ -2,9 +2,11 @@ import 'package:fiuuassistant/features/daily_mood/presentation/screens/mood_auth
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fiuuassistant/features/courses_screen/presentation/pages/courses_screen.dart';
+import 'package:fiuuassistant/features/courses_screen/presentation/pages/my_course_screen.dart';
 import 'package:fiuuassistant/features/home_screen/presentation/pages/home_screen.dart';
 import 'package:fiuuassistant/features/daily_mood/presentation/screens/mood_registration_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:fiuuassistant/features/profile/presentation/profile_screen.dart';
 
 class NavigationShellScreen extends StatefulWidget {
   const NavigationShellScreen({super.key});
@@ -43,8 +45,10 @@ class _NavigationShellScreenState extends State<NavigationShellScreen> {
         final bool isAuthenticated = snapshot.hasData && snapshot.data != null;
         final List<Widget> screens = [
           HomeScreen(),
+          MyCourseScreen(),
           CoursesScreen(),
           isAuthenticated ? MoodRegistrationScreen() : MoodAuthGuardScreen(),
+          ProfileScreen(),
         ];
         return Scaffold(
           body: IndexedStack(index: _selectedIndex, children: screens),
@@ -67,13 +71,20 @@ class _NavigationShellScreenState extends State<NavigationShellScreen> {
         children: [
           // Pasamos el índice (0, 1, 2) y la ruta
           _buildNavItem(Icons.home_filled, 'Inicio', '/', 0),
-          _buildNavItem(Icons.school_outlined, 'Cursos', '/cursos', 1),
+          _buildNavItem(
+            Icons.auto_stories_outlined,
+            'Mis Cursos',
+            '/myCourses',
+            1,
+          ),
+          _buildNavItem(Icons.school_outlined, 'Cursos', '/cursos', 2),
           _buildNavItem(
             Icons.auto_stories_outlined,
             'Diario',
             '/configuracion',
-            2,
+            3,
           ),
+          _buildNavItem(Icons.person_2_outlined, 'Yo', '/profile', 4),
         ],
       ),
     );

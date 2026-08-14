@@ -1,10 +1,95 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widget_previews.dart';
 import '../../data/models/course_model.dart'; // Importa tu modelo
 import '../widget/course_card_widget.dart'; // Tu widget de tarjeta
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fiuuassistant/features/courses_screen/data/repositories/enrollment_repository.dart';
+import 'package:fiuuassistant/features/courses_screen/presentation/pages/course_details_screen.dart';
 
-class CoursesScreen extends StatelessWidget {
+class CoursesScreen extends StatefulWidget {
+  @Preview(
+    name: 'CoursesScreenPreview',
+    textScaleFactor: 1.0,
+    brightness: Brightness.light,
+  )
   const CoursesScreen({super.key});
+  @override
+  State<CoursesScreen> createState() => _CourseScreenState();
+}
+
+class _CourseScreenState extends State<CoursesScreen> {
+  final User? _user = FirebaseAuth.instance.currentUser;
+  late EnrollmentRepositoryImp _enrollmentRepository;
+  List<CourseModel> _availableCourses = [];
+  List<String> _enrolledCourses = [];
+  bool _isLoading = false;
+
+  Future<void> _loadData() async {
+    if (_user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    try {
+      final coursesSnapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .get();
+      if (mounted) {
+        _availableCourses = coursesSnapshot.docs
+            .map((doc) => CourseModel.fromFirestore(doc.data(), doc.id))
+            .toList();
+      }
+      _enrolledCourses = await _enrollmentRepository.getEnrollmentCourses(
+        _user.uid,
+      );
+      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar cursos: $e')));
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _enrollmentRepository = EnrollmentRepositoryImp(FirebaseFirestore.instance);
+    _loadData();
+  }
+
+  Future<void> _enrollInCourse(String courseId) async {
+    if (_user == null) {
+      debugPrint("Usuario no autenticado");
+      return;
+    }
+    debugPrint(
+      "Intentando matricular al usuario ${_user.uid} en el curso $courseId",
+    );
+    setState(() => _isLoading = true);
+    try {
+      await _enrollmentRepository.enroll(_user.uid, courseId);
+      _enrolledCourses.add(courseId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Matriculado con Exito"),
+            backgroundColor: Color(0xFF58A6A6),
+          ),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error al matricularse $err")));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,9 +203,29 @@ class CoursesScreen extends StatelessWidget {
                             courseData,
                             coursesDocs[index].id,
                           );
-
+                          final courseEnroll = coursesDocs[index];
+                          final isEnrolled = _enrolledCourses.contains(
+                            courseEnroll.id,
+                          );
                           // Retornamos tu widget refactorizado
-                          return CoursecardWidget(course: course);
+                          return CourseCardWidget(
+                            course: course,
+                            isEnrolled: isEnrolled,
+                            onEnroll: isEnrolled
+                                ? null
+                                : () {
+                                    debugPrint(
+                                      "🔍 DEBUG: course.id = '${course.id}'",
+                                    );
+                                    debugPrint(
+                                      "🔍 DEBUG: _user?.uid = '${_user?.uid}'",
+                                    );
+                                    _enrollInCourse(course.id);
+                                  },
+                            onTap: isEnrolled
+                                ? () => _navigateToCourse(course)
+                                : null,
+                          );
                         },
                       );
                     },
@@ -131,6 +236,16 @@ class CoursesScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  void _navigateToCourse(CourseModel course) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            CourseDetailsScreen(course: course, isEnrolled: true),
+      ),
     );
   }
 }
