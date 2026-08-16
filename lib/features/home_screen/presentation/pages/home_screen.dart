@@ -1,5 +1,6 @@
 import 'package:fiuuassistant/features/progress/domain/entities/user_progress.dart';
 import 'package:fiuuassistant/features/progress/domain/usecases/get_user_progress.dart';
+import 'package:fiuuassistant/features/thought_battle/presentation/screens/thought_battle_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -227,6 +228,30 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ],
+              ),
+              Padding(
+                padding: EdgeInsetsGeometry.only(top: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ThoughtBattleScreen(),
+                            ),
+                          );
+                        },
+                        child: _buildToolCard(
+                          'vence tus negativos pensamientos',
+                          'Inicar',
+                          Icons.shield,
+                          Colors.orangeAccent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 10),
