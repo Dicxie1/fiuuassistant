@@ -7,8 +7,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 // Agrega al inicio con las otras importaciones
 import 'package:fiuuassistant/features/progress/data/repositories/progress_repository_imp.dart';
 import 'package:fiuuassistant/features/progress/data/datasources/progress_remote_data_source.dart';
-import 'package:fiuuassistant/features/progress/presentation/widgets/progress_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fiuuassistant/features/regulation_missions/data/datasources/regulation_missions_remote_data_source.dart';
+import 'package:fiuuassistant/features/regulation_missions/data/repositories/regulation_missions_repository_imp.dart';
+import 'package:fiuuassistant/features/regulation_missions/domain/entities/user_daily_missions.dart';
+import 'package:fiuuassistant/features/regulation_missions/presentation/widgets/regulation_missions_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +24,9 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _controller;
   late Animation<double> _animation;
   final FlutterTts _flutterTts = FlutterTts();
+  late RegulationMissionsRepositoryImp _missionsRepository;
+  UserDailyMissions? _dailyMissions;
+  bool _isLoadingMissions = true;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isAudioPlaying = false;
@@ -64,6 +70,43 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupTts();
     });
+
+    final missionsDataSource = RegulationMissionsRemoteDataSource(
+      FirebaseFirestore.instance,
+    );
+    _missionsRepository = RegulationMissionsRepositoryImp(
+      missionsDataSource,
+      _progressRepository,
+    );
+    _loadDailyMissions();
+  }
+
+  Future<void> _handleCompleteMission(String missionId) async {
+    if (_user == null) return;
+    final updated = await _missionsRepository.completeMission(
+      _user!.uid,
+      missionId,
+    );
+    setState(() {
+      _dailyMissions = updated;
+    });
+    _loadUserProgress(); // Recarga la barra de XP e información del usuario
+  }
+
+  Future<void> _loadDailyMissions() async {
+    if (_user != null) {
+      try {
+        final missions = await _missionsRepository.getTodayMissions(_user!.uid);
+        if (mounted) {
+          setState(() {
+            _dailyMissions = missions;
+            _isLoadingMissions = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isLoadingMissions = false);
+      }
+    }
   }
 
   @override
@@ -129,6 +172,13 @@ class _HomeScreenState extends State<HomeScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (!_isLoadingMissions && _dailyMissions != null) ...[
+                RegulationMissionsCard(
+                  dailyMissions: _dailyMissions!,
+                  onCompletedMission: _handleCompleteMission,
+                ),
+                const SizedBox(height: 15),
+              ],
               _buildBreathingCard(),
 
               const SizedBox(height: 10),
