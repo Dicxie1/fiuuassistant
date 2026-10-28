@@ -9,6 +9,8 @@ import 'package:fiuuassistant/features/admin/presentation/pages/admin_dashboard.
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'package:fiuuassistant/features/emergency_mode/services/shack_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fiuuassistant/services/sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +20,11 @@ void main() async {
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    // User is signed in, synchronize data
+    await SyncService().syncAllUserData();
+  }
   runApp(const MainApp());
 }
 
