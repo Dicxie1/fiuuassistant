@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:fiuuassistant/features/emergency_contact/domain/entities/emergency_contact.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fiuuassistant/features/emergency_contact/data/datasources/emergency_contact_remote_data_source.dart';
+import 'package:fiuuassistant/features/emergency_contact/data/repositories/emergency_contact_repository_imp.dart';
+import 'package:fiuuassistant/features/emergency_contact/domain/usecases/get_emergency_contact.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fiuuassistant/features/emergency_mode/services/audio_service.dart';
+import 'package:fiuuassistant/features/emergency_mode/services/emergency_service.dart';
 
 class EmergencyModeScreen extends StatefulWidget {
-  const EmergencyModeScreen({super.key});
+  final EmergencyContact? emergencyContact;
+
+  const EmergencyModeScreen({super.key, this.emergencyContact});
   @override
   State<EmergencyModeScreen> createState() => _EmergencyModeScreenState();
 }
@@ -14,11 +26,146 @@ class _EmergencyModeScreenState extends State<EmergencyModeScreen> {
   bool _color2Checked = false;
   bool _color3Checked = false;
 
+  EmergencyContact? _emergencyContact;
+  bool _isLoadingEmergencyContact = true;
+  late GetEmergencyContact _getEmergencyContact;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Detener el servicio de detección de emergencia cuando se entra manualmente
+    // Esto evita conflictos con el sensor de acelerómetro
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await EmergencyService.stop();
+        debugPrint('✅ Servicio de detección de emergencia detenido');
+      } catch (e) {
+        debugPrint('⚠️ Error deteniendo servicio: $e');
+      }
+    });
+    
+    _initEmergencyContact();
+    
+    // Esperar a que el servicio se detenga antes de hablar
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (mounted) {
+        _speakCurrentStepInstruction();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Detener cualquier reproducción de audio al salir
+    AudioService.stopAll();
+    // Asegurar que el servicio de emergencia esté detenido
+    EmergencyService.stop();
+    super.dispose();
+  }
+
+  Future<void> _initEmergencyContact() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final dataSource = EmergencyContactRemoteDataSource(
+        FirebaseFirestore.instance,
+      );
+      final repository = EmergencyContactRepositoryImpl(
+        remoteDataSource: dataSource,
+      );
+      _getEmergencyContact = GetEmergencyContact(repository);
+
+      try {
+        final contact = await _getEmergencyContact.call(user.uid);
+        if (mounted) {
+          setState(() {
+            _emergencyContact = contact;
+            _isLoadingEmergencyContact = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoadingEmergencyContact = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoadingEmergencyContact = false;
+        });
+      }
+    }
+  }
+
   void _nextStep() {
     HapticFeedback.mediumImpact();
     setState(() {
       _currentStep++;
     });
+    // Leer la instrucción del nuevo paso
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakCurrentStepInstruction();
+    });
+  }
+
+  /// Lee la instrucción actual del paso en voz alta
+  Future<void> _speakCurrentStepInstruction() async {
+    if (!AudioService.speechEnabled) return;
+    
+    try {
+      await AudioService.stopAll(); // Detener cualquier audio anterior
+      
+      switch (_currentStep) {
+        case 1:
+          await AudioService.speak(
+            '¡Descarga la adrenalina! Pon el celular boca abajo sobre la mesa y da 10 saltos potentes. '
+            'Esto ayuda a quemar el exceso de cortisol y oxigenar tu cerebro de inmediato.',
+          );
+          break;
+        case 2:
+          await AudioService.speak(
+            'Re-enfoque sensorial. Anclándote al presente. '
+            'Nombra en voz alta 3 colores que ves ahora. '
+            'Luego responde: ¿Qué hora aproximada es? ¿Qué día de la semana es hoy?',
+          );
+          break;
+        case 3:
+          await AudioService.speak(
+            'No estás solo. Contacta a tu red de apoyo. '
+            'Si la intensidad de la crisis no ha bajado, habla directamente con una persona de confianza '
+            'o el equipo de acompañamiento.',
+          );
+          break;
+      }
+    } catch (e) {
+      debugPrint('Error al leer instrucción: $e');
+    }
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final url = Uri.parse('tel:$phoneNumber');
+    try {
+      final status = Permission.phone.request();
+      if (await status.isGranted) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No se puede realizar la llamada directa"),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo realizar la llamada: $phoneNumber'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -63,6 +210,31 @@ class _EmergencyModeScreenState extends State<EmergencyModeScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  // Botón para repetir instrucción actual
+                  IconButton(
+                    onPressed: () {
+                      _speakCurrentStepInstruction();
+                    },
+                    icon: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.volume_up,
+                        color: Color(0xFF58A6A6),
+                        size: 18,
+                      ),
+                    ),
+                    tooltip: 'Repetir instrucción',
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
@@ -448,12 +620,16 @@ class _EmergencyModeScreenState extends State<EmergencyModeScreen> {
         // Opción 1: Contacto de confianza
         _buildContactCard(
           icon: Icons.person,
-          title: 'Compañero / Amigo de Confianza',
-          subtitle: 'Llamar o enviar mensaje rápido',
+          title: _emergencyContact != null
+              ? _emergencyContact!.name
+              : 'Compañero / Amigo de Confianza',
+          subtitle: _emergencyContact != null
+              ? 'Llamar a ${_emergencyContact!.phone}'
+              : 'Llamar o enviar mensaje rápido',
           color: const Color(0xFF58A6A6),
-          onTap: () {
-            // Lógica para realizar llamada o abrir WhatsApp
-          },
+          onTap: _emergencyContact != null
+              ? () => _makePhoneCall(_emergencyContact!.phone)
+              : () {},
         ),
 
         const SizedBox(height: 12),
@@ -481,7 +657,10 @@ class _EmergencyModeScreenState extends State<EmergencyModeScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              AudioService.stopAll();
+              Navigator.pop(context);
+            },
             child: const Text(
               'Salir de Emergencia',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),

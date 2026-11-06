@@ -1,7 +1,9 @@
-import 'package:fiuuassistant/features/profile/data/datasources/emergency_contact_remote_data_source.dart';
-import 'package:fiuuassistant/features/profile/data/repositories/emergency_contact_repository_imp.dart';
-import 'package:fiuuassistant/features/profile/domain/entities/emergency_contact.dart';
-import 'package:fiuuassistant/features/profile/domain/usecases/save_emergency_contact.dart';
+import 'package:fiuuassistant/features/emergency_mode/presentation/screens/emergency_settings_screen.dart';
+import 'package:fiuuassistant/features/emergency_mode/services/emergency_service.dart';
+import 'package:fiuuassistant/features/emergency_contact/data/datasources/emergency_contact_remote_data_source.dart';
+import 'package:fiuuassistant/features/emergency_contact/data/repositories/emergency_contact_repository_imp.dart';
+import 'package:fiuuassistant/features/emergency_contact/domain/entities/emergency_contact.dart';
+import 'package:fiuuassistant/features/emergency_contact/domain/usecases/save_emergency_contact.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,11 +12,11 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:fiuuassistant/features/progress/presentation/widgets/progress_card.dart';
 import 'package:fiuuassistant/features/progress/domain/entities/user_progress.dart';
 import 'package:fiuuassistant/features/progress/domain/usecases/get_user_progress.dart';
-import 'package:fiuuassistant/features/profile/domain/usecases/get_emergency_contact.dart';
-import 'package:fiuuassistant/features/profile/domain/usecases/save_emergency_contact.dart';
+import 'package:fiuuassistant/features/emergency_contact/domain/usecases/get_emergency_contact.dart';
+import 'package:fiuuassistant/features/emergency_contact/domain/usecases/save_emergency_contact.dart';
 import 'package:fiuuassistant/features/progress/data/repositories/progress_repository_imp.dart';
 import 'package:fiuuassistant/features/progress/data/datasources/progress_remote_data_source.dart';
-import 'package:fiuuassistant/features/profile/data/repositories/emergency_contact_repository_imp.dart';
+import 'package:fiuuassistant/features/emergency_contact/data/repositories/emergency_contact_repository_imp.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -74,10 +76,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showEmergencyContactDialog() async {
-    if(_user == null || _user.uid.isEmpty){
+    if (_user == null || _user.uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('No se puede guardar el contacto de emergencia sin un usuario válido.'),
+          content: Text(
+            'No se puede guardar el contacto de emergencia sin un usuario válido.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -181,7 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     relationship: relationshipController.text.trim(),
                     createdAt: DateTime.now(),
                   );
-                  if(contact.userId.isEmpty){
+                  if (contact.userId.isEmpty) {
                     throw Exception('El ID del usuario no puede estar vacío.');
                   }
                   await _saveEmergencyContact.call(contact);
@@ -469,6 +473,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         subtitle: 'Recordatorio de lectura',
                         onTap: () {},
                       ),
+                    _buildTitle(
+                      icon: Icons.emergency_outlined,
+                      title: 'Modo Emergencia',
+                      subtitle: 'Configurar detección y Opciones',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const EmergencySettingsScreen(),
+                          ),
+                        );
+                      },
+                    ),
                     if (_user != null)
                       _buildTitle(
                         icon: Icons.quick_contacts_dialer_outlined,

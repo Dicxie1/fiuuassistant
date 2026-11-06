@@ -26,6 +26,19 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Fiuu Assistant necesita tu ubicación para compartirla con tu contacto cuando se active una emergencia.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>Fiuu Assistant necesita acceso a la ubicación en segundo plano para enviar tu ubicación cuando se active el modo de emergencia.</string>
+		<key>BGTaskSchedulerPermittedIdentifiers</key>
+		<array>
+			<string>com.pravera.flutter_foreground_task.refresh</string>
+		</array>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>location</string>
+			<string>fetch</string>
+		</array>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

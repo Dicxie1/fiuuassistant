@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../data/models/cognitive_battle_model.dart';
 import 'package:vibration/vibration.dart';
 
@@ -180,7 +179,7 @@ class _ThoughtBattleScreenState extends State<ThoughtBattleScreen>
                         width: double.infinity,
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade900.withOpacity(0.2),
+                          color: Colors.red.shade900.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: Colors.red.shade700,
@@ -188,7 +187,7 @@ class _ThoughtBattleScreenState extends State<ThoughtBattleScreen>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.red.withOpacity(0.3),
+                              color: Colors.red.withValues(alpha:0.3),
                               blurRadius: 15,
                               spreadRadius: 2,
                             ),
