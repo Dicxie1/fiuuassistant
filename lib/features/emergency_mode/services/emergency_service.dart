@@ -123,8 +123,14 @@ class EmergencyService {
     }
   }
 
-  // Start background service
+  // Start background service - SOLO para móvil
   static Future<void> start(GlobalKey<NavigatorState>? navigatorKey) async {
+    // No compatible con web (dart:isolate no disponible)
+    if (kIsWeb) {
+      debugPrint('⚠️ Foreground task no soportado en web');
+      return;
+    }
+    
     _navigatorKey = navigatorKey;
 
     try {
@@ -307,6 +313,12 @@ class EmergencyService {
   }
 
   static Future<void> requestEmergencyPermissions() async {
+    // No compatible con web
+    if (kIsWeb) {
+      debugPrint('⚠️ requestEmergencyPermissions: no soportado en web');
+      return;
+    }
+    
     final permission =
         await FlutterForegroundTask.checkNotificationPermission();
     if (permission != NotificationPermission.granted) {
@@ -348,6 +360,12 @@ class EmergencyService {
   }
 
   static Future<void> stop() async {
+    // No compatible con web
+    if (kIsWeb) {
+      debugPrint('⚠️ stop: ForegroundTask no soportado en web');
+      return;
+    }
+    
     if (_taskDataCallbackRegistered) {
       FlutterForegroundTask.removeTaskDataCallback(_onReceiveTaskData);
       _taskDataCallbackRegistered = false;
@@ -401,7 +419,10 @@ class EmergencyService {
 
 @pragma('vm:entry-point')
 void startCallback() {
-  FlutterForegroundTask.setTaskHandler(EmergencyTaskHandler());
+  // No compatible con web - no se ejecutará en web
+  if (!kIsWeb) {
+    FlutterForegroundTask.setTaskHandler(EmergencyTaskHandler());
+  }
 }
 
 class EmergencyTaskHandler extends TaskHandler {

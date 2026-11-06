@@ -40,34 +40,39 @@ void main() async {
     }
   }
   
-  FlutterForegroundTask.initCommunicationPort();
   await dotenv.load(fileName: ".env");
   
-  // Inicializar AudioService
-  await AudioService.initialize();
+  // Inicializar servicios SOLO para móvil (Android/iOS) - no compatible con web
+  if (!kIsWeb) {
+    FlutterForegroundTask.initCommunicationPort();
+    
+    // Inicializar AudioService
+    await AudioService.initialize();
+    
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'emergency_service_channel',
+        channelName: 'Fiuu Assistant Emergency',
+        channelDescription: 'Background service for emergency shake detection',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
+      ),
+      iosNotificationOptions: IOSNotificationOptions(
+        showNotification: true,
+        playSound: false,
+      ),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.nothing(),
+        allowWakeLock: true,
+        allowWifiLock: true,
+        allowAutoRestart: true,
+        stopWithTask: false,
+        autoRunOnBoot: false,
+        autoRunOnMyPackageReplaced: false,
+      ),
+    );
+  }
   
-  FlutterForegroundTask.init(
-    androidNotificationOptions: AndroidNotificationOptions(
-      channelId: 'emergency_service_channel',
-      channelName: 'Fiuu Assistant Emergency',
-      channelDescription: 'Background service for emergency shake detection',
-      channelImportance: NotificationChannelImportance.LOW,
-      priority: NotificationPriority.LOW,
-    ),
-    iosNotificationOptions: IOSNotificationOptions(
-      showNotification: true,
-      playSound: false,
-    ),
-    foregroundTaskOptions: ForegroundTaskOptions(
-      eventAction: ForegroundTaskEventAction.nothing(),
-      allowWakeLock: true,
-      allowWifiLock: true,
-      allowAutoRestart: true,
-      stopWithTask: false,
-      autoRunOnBoot: false,
-      autoRunOnMyPackageReplaced: false,
-    ),
-  );
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
