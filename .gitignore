@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+/linux/flutter
+
+# MacOS
+macos/flutter/
+
+# Windows
+windows/flutter/
